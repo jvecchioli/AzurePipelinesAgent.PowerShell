@@ -221,6 +221,19 @@ function Install-VSTSAgent {
 
         [parameter(Mandatory = $false)]
         [string]$Pool = 'Default',
+        
+        
+        ##Deployment
+        [parameter(Mandatory = $false)]
+        [switch]$DeploymentGroup,
+
+        [parameter(Mandatory = $false)]
+        [string]$DeploymentGroupName,
+
+        [parameter(Mandatory = $false)]
+        [string]$ProjectName,
+        ##End Deployment
+
 
         [parameter(Mandatory = $true)]
         [securestring]$PAT,
@@ -291,8 +304,17 @@ function Install-VSTSAgent {
     $configPath = Get-ChildItem $configPath -ErrorAction SilentlyContinue
     if ( -not $configPath ) { throw "Agent $agentFolder is missing config.cmd" }
 
-    [string[]]$configArgs = @('--unattended', '--url', "$ServerUrl", '--auth', `
-            'pat', '--pool', "$Pool", '--agent', "$Name", '--runAsService')
+    if ( $DeploymentGroup ){
+        [string[]]$configArgs = @('--unattended','--deploymentGroup', '--url', "$ServerUrl", '--auth', `
+        'pat', '--deploymentGroupName', "$DeploymentGroupName", '--projectName', "$ProjectName", '--agent', "$Name", '--runAsService')
+    }else{
+        [string[]]$configArgs = @('--unattended', '--url', "$ServerUrl", '--auth', `
+        'pat', '--pool', "$Pool", '--agent', "$Name", '--runAsService')
+    }
+
+    # Original config Args
+    # [string[]]$configArgs = @('--unattended', '--url', "$ServerUrl", '--auth', `
+    #         'pat', '--pool', "$Pool", '--agent', "$Name", '--runAsService')
     if ( $Replace ) { $configArgs += '--replace' }
     if ( $LogonCredential ) { $configArgs += '--windowsLogonAccount', $LogonCredential.UserName }
     if ( $Work ) { $configArgs += '--work', $Work }
@@ -300,19 +322,27 @@ function Install-VSTSAgent {
     if ( -not $PSCmdlet.ShouldProcess("$configPath $configArgs", "Start-Process") ) { return }
 
     $token = [System.Net.NetworkCredential]::new($null, $PAT).Password
-    $configArgs += '--token', $token
-
+    $configArgs += '--token'
+    $configArgs += $token
     if ( $LogonCredential ) {
         $configArgs += '--windowsLogonPassword', `
             [System.Net.NetworkCredential]::new($null, $LogonCredential.Password).Password
     }
 
+    #Write-Verbose "Configuration Arguments : $configArgs"
+
     $outFile = [io.path]::Combine($agentFolder, "out.log")
     $errorFile = [io.path]::Combine($agentFolder, "error.log")
 
-    Write-Verbose "Registering $Name to $Pool at $ServerUrl"
-    Start-Process $configPath -ArgumentList $configArgs -NoNewWindow -Wait `
-        -RedirectStandardOutput $outFile -RedirectStandardError $errorFile -ErrorAction Stop
+    if ( $DeploymentGroup ){
+        Write-Verbose "Registering Deployment Agent $Name to $DeploymentGroupName at $ServerUrl"
+    }else{
+        Write-Verbose "Registering Build Agent $Name to $Pool at $ServerUrl"
+    }
+    
+    Start-Process "$configPath" -ArgumentList "$configArgs" -NoNewWindow -Wait -RedirectStandardOutput $outFile -RedirectStandardError $errorFile -ErrorAction Stop 
+    # Write-Host $configPath $configArgs
+    # & $configPath $configArgs
 
     if (Test-Path $errorFile) {
         Get-Content $errorFile  | Write-Error
