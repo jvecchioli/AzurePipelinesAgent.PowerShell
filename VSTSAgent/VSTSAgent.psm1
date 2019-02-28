@@ -211,13 +211,13 @@ function Install-VSTSAgent {
         [VSTSAgentVersion]$RequiredVersion,
 
         [parameter(Mandatory = $false)]
-        [string]$AgentDirectory = [IO.Path]::Combine($env:USERPROFILE, "VSTSAgents"),
+        [string]$AgentDirectory = (Join-Path -Path $env:SYSTEMDRIVE -ChildPath "aagent"),
 
         [parameter(Mandatory = $false)]
         [string]$Work,
 
         [parameter(Mandatory = $false)]
-        [string]$Name = [System.Environment]::MachineName + "-$(Get-Random)",
+        [string]$Name = [System.Environment]::MachineName,
 
         [parameter(Mandatory = $false)]
         [string]$Pool = 'Default',
@@ -248,7 +248,8 @@ function Install-VSTSAgent {
         [pscredential]$LogonCredential,
 
         [parameter(Mandatory = $false)]
-        [string]$Cache = [io.Path]::Combine($env:USERPROFILE, ".vstsagents")
+        [string]$Cache = (Join-Path -Path $env:SYSTEMDRIVE -ChildPath ".aagent-cache")
+        # [string]$Cache = [io.Path]::Combine($env:SYSTEMDRIVE, "\.aagent-cache")
     )
 
     if ($PSVersionTable.Platform -and $PSVersionTable.Platform -ne 'Win32NT') {
@@ -306,10 +307,10 @@ function Install-VSTSAgent {
 
     if ( $DeploymentGroup ){
         [string[]]$configArgs = @('--unattended','--deploymentGroup', '--url', "$ServerUrl", '--auth', `
-        'pat', '--deploymentGroupName', "$DeploymentGroupName", '--projectName', "$ProjectName", '--agent', "$Name", '--runAsService')
+        'pat', '--deploymentGroupName', "`"$DeploymentGroupName`"", '--projectName', "`"$ProjectName`"", '--agent', "`"$Name`"", '--runAsService')
     }else{
         [string[]]$configArgs = @('--unattended', '--url', "$ServerUrl", '--auth', `
-        'pat', '--pool', "$Pool", '--agent', "$Name", '--runAsService')
+        'pat', '--pool', "`"$Pool`"", '--agent',"`"$Name`"", '--runAsService')
     }
 
     # Original config Args
@@ -451,7 +452,7 @@ function Get-VSTSAgent {
         [VSTSAgentVersion]$RequiredVersion,
 
         [parameter(Mandatory = $false)]
-        [string]$AgentDirectory = [io.Path]::Combine($env:USERPROFILE, "VSTSAgents"),
+        [string]$AgentDirectory = (Join-Path -Path $env:SYSTEMDRIVE -ChildPath ".aagent"),
 
         [parameter(Mandatory = $false)]
         [string]$NameFilter = '*'
@@ -551,7 +552,7 @@ function Start-VSTSAgent {
     )
 
     $stoppedAgents = Get-VSTSAgent @PSBoundParameters | Where-Object { 
-        $_.Service.Status -eq [System.ServiceProcess.ServiceControllerStatus]::Stopped 
+        $_.Service.Status -eq [System.ServiceProcess.ServiceControllerStatusServiceProcess.ServiceControllerStatus]::Stopped 
     }
 
     $stoppedAgents | ForEach-Object {
